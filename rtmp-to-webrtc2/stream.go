@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/nareix/joy5/av"
+	"github.com/nareix/joy5/codec/aac"
 	"github.com/nareix/joy5/codec/h264"
 	"github.com/nareix/joy5/format/rtmp"
 	"github.com/notedit/media-server-go"
@@ -117,6 +118,7 @@ func (self *Stream) readLoop(ctx context.Context) {
 	if err != nil {
 		fmt.Println(err)
 	}
+	adtsheader := make([]byte, 7)
 	pusher.Start()
 	for {
 		select {
@@ -185,9 +187,19 @@ func (self *Stream) readLoop(ctx context.Context) {
 
 		case av.AACDecoderConfig:
 			self.buf.ASeqHdr = append([]byte(nil), pkt.Data...)
+			self.buf.AAC, _ = aac.FromMPEG4AudioConfigBytes(pkt.Data)
+			fmt.Println(self.buf.AAC)
+			pusher.Push(NALUHeader, true)
+			pusher.Push(self.buf.AAC.ConfigBytes, true)
 		case av.AAC:
 			pkt.Metadata = self.buf.Metadata
 			pkt.ASeqHdr = self.buf.ASeqHdr
+			//pusher.Push(pkt.Data, true)
+			adtsbuffer := []byte{}
+			aac.FillADTSHeader(adtsheader, self.buf.AAC.Config, 1024, len(pkt.Data))
+			adtsbuffer = append(adtsbuffer, adtsheader...)
+			adtsbuffer = append(adtsbuffer, pkt.Data...)
+			pusher.Push(adtsbuffer, true)
 			// todo
 		case av.Metadata:
 			self.buf.Metadata = pkt.Data
