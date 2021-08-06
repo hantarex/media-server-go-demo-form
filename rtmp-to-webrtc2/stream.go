@@ -3,13 +3,17 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"github.com/nareix/joy5/av"
 	"github.com/nareix/joy5/codec/h264"
+	"github.com/nareix/joy5/format/rtmp"
 	"github.com/notedit/media-server-go"
+	rtmppusher "github.com/notedit/media-server-go-demo/rtmp-to-webrtc2/rtmp"
 	"github.com/notedit/sdp"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v2"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -108,7 +112,12 @@ func (self *Stream) GetAuidoTrack() *mediaserver.IncomingStreamTrack {
 }
 
 func (self *Stream) readLoop(ctx context.Context) {
-
+	s := strings.Split(self.conn.(*rtmp.Conn).URL.Path, "/")
+	pusher, err := rtmppusher.NewRtmpPusher(s[2])
+	if err != nil {
+		fmt.Println(err)
+	}
+	pusher.Start()
 	for {
 		select {
 		case <-ctx.Done():
@@ -131,6 +140,11 @@ func (self *Stream) readLoop(ctx context.Context) {
 			self.dumper.Write(self.buf.H264.SPS[0])
 			self.dumper.Write(NALUHeader)
 			self.dumper.Write(self.buf.H264.PPS[0])
+
+			pusher.Push(NALUHeader, false)
+			pusher.Push(self.buf.H264.SPS[0], false)
+			pusher.Push(NALUHeader, false)
+			pusher.Push(self.buf.H264.PPS[0], false)
 
 		case av.H264:
 			pkt.Metadata = self.buf.Metadata
@@ -158,12 +172,14 @@ func (self *Stream) readLoop(ctx context.Context) {
 			b.Write(nalusbuf)
 
 			self.dumper.Write(nalusbuf)
+			pusher.Push(nalusbuf, false)
 
 			pkts := self.videoPacketizer.Packetize(b.Bytes(), samples)
 
 			for _, rtppkt := range pkts {
 				buf, _ := rtppkt.Marshal()
 				self.video.Push(buf)
+				//pusher.Push(buf, false)
 			}
 			self.lastVideoTime = pkt.Time
 

@@ -131,7 +131,7 @@ func channel(c *gin.Context) {
 }
 
 func startRtmp() {
-	lis, err := net.Listen("tcp", ":1935")
+	lis, err := net.Listen("tcp", ":1936")
 	if err != nil {
 		panic(err)
 	}
@@ -173,7 +173,7 @@ func startRtmp() {
 
 func main() {
 
-	address := ":8000"
+	address := ":8001"
 	r := gin.Default()
 
 	r.LoadHTMLFiles("./index.html")

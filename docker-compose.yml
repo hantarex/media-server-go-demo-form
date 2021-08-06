@@ -1,0 +1,16 @@
+version: '3.7'
+services:
+
+  streamserver:
+    image: docker.onmoon.ru:4567/simix/videochat/sham/stream_server
+    restart: always
+    container_name: rtmp-hls
+    working_dir: /application
+    command: bash -c "cd /application/data && mkdir -p {history,hls,logs,record,thumbs} && chmod a+rwx history hls logs record thumbs && /opt/nginx/sbin/nginx"
+    volumes:
+      - ./:/application/data/:rw
+      - ./docker/streaming/nginx-local.conf:/opt/nginx/nginx.conf
+      - ./docker/nginx/:/opt/nginx/etc/
+    ports:
+      - "83:8081"
+
